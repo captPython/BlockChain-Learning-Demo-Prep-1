@@ -35,6 +35,6 @@ contract SimpleBank {
   }
 
   function () {
-    throw;
+    revert();
   }
 }
