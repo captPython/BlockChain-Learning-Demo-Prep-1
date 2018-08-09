@@ -18,14 +18,22 @@ struct bid{
   bool BidStatus;
 }
 
+bid[] bidArray;
 
-
-  constructor() public {
+constructor() public {
     owner = msg.sender;
     oracle = 0xF5302B50c357045Ca6b326acCF31c758e9AcDDe3;
   }
 
-  function placeBid() public {
+  	/* Owner chooses their trusted Oracle */
+	function chooseOracle(address _oracle) onlyOwner() returns (address) {
+	}
+
+  function placeBid(bid [] bidArray) public {
+
+  }
+
+  function checkBid(uint [] bidArray) public {
 
   }
 
@@ -38,6 +46,11 @@ struct bid{
 
 modifier onlyOwner { 
      if (msg.sender == owner) 
+       _;
+    }
+
+modifier onlyOracle { 
+     if (msg.sender == oracle) 
        _;
     }
 
