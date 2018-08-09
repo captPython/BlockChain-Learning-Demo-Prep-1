@@ -20,7 +20,7 @@ struct bid{
 
 
 
-  constructor() {
+  constructor() public {
     owner = msg.sender;
     oracle = 0xF5302B50c357045Ca6b326acCF31c758e9AcDDe3;
   }
