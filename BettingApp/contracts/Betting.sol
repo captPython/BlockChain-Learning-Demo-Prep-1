@@ -3,35 +3,60 @@ pragma solidity ^0.4.22;
 
 contract Betting {
 
-	/* Standard state variables */
+/* Standard state variables */
+    address public owner;
+    address public oracle;
+   // address public gamblerA;
+   // address public gamblerB;
 
-address public owner;
-address public player1;
-address public player2;
-address public oracle;
+    uint[] public outcomes;    // Representing an outcome
 
+/* Structs are custom data structures with self-defined parameters */
+    struct Bet {
+        uint outcome;
+        uint amount;
+        bool initialized;
+    }
 
+/* Keep track of every gambler's bet */
+	mapping (address => Bet) bets;
 
-struct bid{
-  uint bidAmount;
-  uint expectedOutcome;
-  bool BidStatus;
-}
+/* Add any events you think are necessary */
+    event BetMade(address gambler);
+    event BetClosed();
 
-bid[] bidArray;
-
-constructor() public {
+constructor(uint[] _possibleOutcomes) public {
     owner = msg.sender;
-    oracle = 0xF5302B50c357045Ca6b326acCF31c758e9AcDDe3;
+    outcomes = _possibleOutcomes;
+   /* for(uint i=0; i < _possibleOutcomes.length; i++){
+      Question : what is the difference if I will not run the loop and just assign the arrays
+      Check during testing
+    } */
   }
 
-  	/* Owner chooses their trusted Oracle */
-	function chooseOracle(address _oracle) onlyOwner() returns (address) {
-	}
+   /* Owner chooses their trusted Oracle */
+    function chooseOracle(address _oracle) public ownerOnly() returns (address) {
+    //    require(_oracle != gamblerA && _oracle != gamblerB);    // Make sure no gamblers are selected as the oracle
+        require(_oracle != owner);                              // Make sure owner cannot select himself/herself as the oracle
+          oracle = _oracle;                                      /* Vulnerability in human trust */
+        return oracle;
+    }
 
-  function placeBid(bid [] bidArray) public {
+  /* Gamblers place their bets, preferably after calling checkOutcomes */
+    function makeBet(uint _outcome) public gamblerOnly() payable returns (bool) {
+        require(msg.sender != oracle);
+        require(!bets[msg.sender].initialized); // user cannot double bet
+        
+        address gambler = msg.sender;
 
-  }
+         if (!bets[gambler].initialized) {
+            bets[gambler] = Bet(_outcome, msg.value, true);
+            emit BetMade(gambler);
+            return true;
+        } else {
+           return false; // Bets already exist for gambler
+        }
+    }
 
   function checkBid(uint [] bidArray) public {
 
@@ -43,20 +68,17 @@ constructor() public {
 // '_' (underscore) often included as last line in body, and indicates
 // function being called should be placed there
 // Example modifier onlyAfter(uint _time) { if (now <= _time) throw; _ }
+  modifier ownerOnly() { if (msg.sender == owner) _;}
 
-modifier onlyOwner { 
-     if (msg.sender == owner) 
-       _;
-    }
+  modifier oracleOnly() { if (msg.sender == oracle) _;}
 
-modifier onlyOracle { 
-     if (msg.sender == oracle) 
-       _;
-    }
+  modifier gamblerOnly() { if (!(msg.sender == oracle) || !(msg.sender == owner)) _;}
+  
+  //modifier validBalanceOnly(bidValue) { if (msg.value > bidValue) _;}  // I need to validate this in next level #2
 
-modifier onlyAfter(uint _time) { if (now <= _time) revert(); _; }
+  modifier onlyAfter(uint _time) { if (now <= _time) revert(); _; }
 
-//modifier onlyIfState (state currState) { if (currState != State.A) _; }
+// modifier onlyIfState (state currState) { if (currState != State.A) _; }
 
 // underscore can be included before end of body,
 // but explicitly returning will skip, so use carefully
@@ -72,10 +94,8 @@ modifier checkValue(uint amount) {
 
 
 // Append right after function declaration
-function changeOwner(address newOwner) onlyAfter(now) onlyOwner()
-        // onlyIfState(State.A)
-{
-owner = newOwner;
+function changeOwner(address newOwner) onlyAfter(now) ownerOnly(){
+    owner = newOwner;
 }
 
 
@@ -84,7 +104,8 @@ owner = newOwner;
 // Typically, called when invalid data is sent
 // Added so ether sent to this contract is reverted if the contract fails
 // otherwise, the sender's money is transferred to contract
-  function () {
-    revert(); // reverts state to before call
-  }
+    /* Fallback function */
+function() public payable {
+    revert();
+}
 }
