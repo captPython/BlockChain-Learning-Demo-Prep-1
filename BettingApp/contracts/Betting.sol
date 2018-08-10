@@ -6,6 +6,9 @@ contract Betting {
 /* Standard state variables */
     address public owner;
     address public oracle;
+
+  /* owner funds mapping */
+  mapping (address => uint) public ownerFundCounter;
    // address public gamblerA;
    // address public gamblerB;
 
@@ -29,9 +32,6 @@ contract Betting {
 
 /* Keep track of every gambler's bet */
 	mapping (address => Bet) bets;
-
-/* Bet counter for gamblers */
-  mapping (address => uint) public betCounter;
     
 /* Keep track of gambler info */  
   GamblerInfo [] public gamblerInfo;
@@ -43,9 +43,10 @@ contract Betting {
     event BetClosed(uint bidNumber);
 
 constructor(uint[] _possibleOutcomes) public {
-    houseBetNumber = 1;                    // Initilized the bet number
+    houseBetNumber = 1;                         // Initilized the bet number
     owner = msg.sender;
     outcomes = _possibleOutcomes;
+    ownerFundCounter[owner] = 0;                // Setting Owner Contract Balance 
    /* for(uint i=0; i < _possibleOutcomes.length; i++){
       Question : what is the difference if I will not run the loop and just assign the arrays
       Check during testing
@@ -57,6 +58,7 @@ constructor(uint[] _possibleOutcomes) public {
     //    require(_oracle != gamblerA && _oracle != gamblerB);    // Make sure no gamblers are selected as the oracle
         require(_oracle != owner);                              // Make sure owner cannot select himself/herself as the oracle
           oracle = _oracle;                                      /* Vulnerability in human trust */
+          ownerFundCounter[oracle] = 0;                // Setting Owner Contract Balance 
         return oracle;
     }
 
@@ -65,7 +67,7 @@ constructor(uint[] _possibleOutcomes) public {
         require(msg.sender != oracle);
         require(!bets[msg.sender].initialized);                                // user cannot double bet
         /** Check if BidClose Event is transmitted */
-        
+
         uint winningAmount = bets[gambler].winningAmount;
                     // Number of bids played by user
         GamblerInfo memory gamblerObj;
@@ -109,7 +111,7 @@ constructor(uint[] _possibleOutcomes) public {
       loopRun++;
     }
       if(noWinner){
-        /* Trasfer funds to Oracle */
+        ownerFundCounter[oracle] += totalBatAmount;
         emit NoWinner();
       }
       houseBetNumber++;                                   // Increment house bet number for next round
@@ -117,12 +119,23 @@ constructor(uint[] _possibleOutcomes) public {
 
  /* Withdraw the winnings safely (if they have enough) */
     function withdraw(uint withdrawAmount) public returns (uint) {
+      if(msg.sender == oracle){
+        require(ownerFundCounter[msg.sender] >= withdrawAmount);
+         ownerFundCounter[oracle] -= withdrawAmount;
+         
+        /* Trasfer funds to Oracle */
+        if(!oracle.send(totalBatAmount))
+            ownerFundCounter[oracle] += withdrawAmount;
+        return (ownerFundCounter[oracle]);                   // return the remaining winnings
+
+      }else{
         require(bets[msg.sender].winningAmount >= withdrawAmount);
            bets[msg.sender].winningAmount -= withdrawAmount;
         if(!msg.sender.send(withdrawAmount))
             bets[msg.sender].winningAmount += withdrawAmount;
 
          return (bets[msg.sender].winningAmount);                   // return the remaining winnings
+      }
     }
 
 
