@@ -24,17 +24,31 @@ App = {
   },
 
   initWeb3: function() {
-    /*
-     * Replace me...
-     */
+    /**Checking for web3 instance and generating new if not found */
+    if (typeof web3 !== 'undefined') {
+      web3 = new Web3(web3.currentProvider);
+    } else {
+      // set the provider you want from Web3.providers
+      /**This fallback is fine for development environments, but insecure and not suitable for production. */
+      web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:7545"));
+      web3.setProvider(new web3.providers.HttpProvider('http://' + captPython007 + ':' + Lear2018 + '@localhost:7545'));
+    }
 
     return App.initContract();
   },
 
   initContract: function() {
-    /*
-     * Replace me...
-     */
+    $.getJSON('Adoption.json', function(data) {
+      // Get the necessary contract artifact file and instantiate it with truffle-contract
+      var AdoptionArtifact = data;
+      App.contracts.Adoption = TruffleContract(AdoptionArtifact);
+    
+      // Set the provider for our contract
+      App.contracts.Adoption.setProvider(App.web3Provider);
+    
+      // Use our contract to retrieve and mark the adopted pets
+      return App.markAdopted();
+    });
 
     return App.bindEvents();
   },
@@ -43,26 +57,55 @@ App = {
     $(document).on('click', '.btn-adopt', App.handleAdopt);
   },
 
-  markAdopted: function(adopters, account) {
-    /*
-     * Replace me...
-     */
+  markAdopted: function() {
+    var adoptionInstance;
+
+    App.contracts.Adoption.deployed().then(function(instance) {
+      adoptionInstance = instance;
+    /**Using call() allows us to read data from the blockchain without having to send a full transaction, 
+     * meaning we won't have to spend any ether. */
+      return adoptionInstance.getAdopters.call();
+    }).then(function(adopters) {
+      for (i = 0; i < adopters.length; i++) {
+        if (adopters[i] !== '0x0000000000000000000000000000000000000000') {
+          $('.panel-pet').eq(i).find('button').text('Success').attr('disabled', true);
+        }
+      }
+    }).catch(function(err) {
+      console.log(err.message);
+    });
   },
 
   handleAdopt: function(event) {
     event.preventDefault();
 
     var petId = parseInt($(event.target).data('id'));
+    var adoptionInstance;
 
-    /*
-     * Replace me...
-     */
-  }
-
-};
+    web3.eth.getAccounts(function(error, accounts) {
+      if (error) {
+        console.log(error);
+      }
+    
+      var account = accounts[0];
+    
+      App.contracts.Adoption.deployed().then(function(instance) {
+        adoptionInstance = instance;
+    
+        // Execute adopt as a transaction by sending account
+        return adoptionInstance.adopt(petId, {from: account});
+      }).then(function(result) {
+        return App.markAdopted();
+      }).catch(function(err) {
+        console.log(err.message);
+      });
+    });
+  };
 
 $(function() {
   $(window).load(function() {
     App.init();
   });
-});
+})
+
+}
