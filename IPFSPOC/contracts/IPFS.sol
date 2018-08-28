@@ -9,5 +9,5 @@ contract IPFS {
 
   function get() public view returns (uint) {
     return ipfsHash;
-  }
+  } 
 }
